@@ -2,19 +2,12 @@ package com.hocc.nfc.relayserver;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
-import android.media.SoundPool;
+import android.net.wifi.WifiManager;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.tech.IsoDep;
 import android.os.Bundle;
-import android.os.CountDownTimer;
-import android.os.Handler;
-import android.os.Looper;
-import android.os.VibrationEffect;
-import android.os.Vibrator;
 import android.util.Log;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
@@ -22,29 +15,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-
-import org.w3c.dom.Document;
-
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URL;
-import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import javax.crypto.Cipher;
-import javax.crypto.spec.SecretKeySpec;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 
 public class MainActivity extends AppCompatActivity {
     private NfcAdapter nfcAdapter;
@@ -71,7 +47,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
         help = findViewById(R.id.help);
-        help.setText("This is the server app. \n Tap the card to the device. \n IP address: " + getLocalIpAddress() + "\n Port: 8888");
+        help.setText("This is the server app. \n Tap the card to the device. \n IP address: " + getWifiIpAddress(getApplicationContext()) + "\n Port: 8888");
         new ServerThread().start();
     }
 
@@ -96,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        help.setText("This is the server app. \n Tap the card to the device. \n IP address: " + getLocalIpAddress() + "\n Port: 8888");
+        help.setText("This is the server app. \n Tap the card to the device. \n IP address: " + getWifiIpAddress(getApplicationContext()) + "\n Port: 8888");
         // Enable Reader Mode when activity is resumed
         if (nfcAdapter != null) {
             Bundle options = new Bundle();
@@ -227,19 +203,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private String getLocalIpAddress() {
-        try {
-            for (java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
-                java.net.NetworkInterface intf = en.nextElement();
-                for (java.util.Enumeration<java.net.InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
-                    java.net.InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (!inetAddress.isLoopbackAddress() && inetAddress instanceof java.net.Inet4Address) {
-                        return inetAddress.getHostAddress();
-                    }
-                }
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
+    public String getWifiIpAddress(Context context) {
+        WifiManager wifiManager = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+        if (wifiManager != null) {
+            int ip = wifiManager.getConnectionInfo().getIpAddress();
+            return String.format(
+                    "%d.%d.%d.%d",
+                    (ip & 0xff),
+                    (ip >> 8 & 0xff),
+                    (ip >> 16 & 0xff),
+                    (ip >> 24 & 0xff)
+            );
         }
         return "IP not found";
     }
