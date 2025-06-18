@@ -8,6 +8,8 @@ import android.nfc.Tag;
 import android.nfc.tech.IsoDep;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
@@ -31,6 +33,9 @@ public class MainActivity extends AppCompatActivity {
     private PrintWriter out;
     private boolean isRunning = true;
     TextView help;
+    TextView log;
+    StringBuilder logString;
+    Button clear;
 
 
     @SuppressLint("MissingInflatedId")
@@ -46,8 +51,21 @@ public class MainActivity extends AppCompatActivity {
         });
         setContentView(R.layout.activity_main);
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
+        logString = new StringBuilder("");
+        log = findViewById(R.id.Log);
+        logString.append("NFC log:");
+        log.setText(logString);
         help = findViewById(R.id.help);
-        help.setText("This is the server app. \n Tap the card to the device. \n IP address: " + getWifiIpAddress(getApplicationContext()) + "\n Port: 8888");
+        help.setText("IP address: " + getWifiIpAddress(getApplicationContext()) + "\nPort: 8888");
+        clear = findViewById(R.id.clear);
+        clear.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                logString = new StringBuilder("");
+                logString.append("NFC log:");
+                log.setText(logString);
+            }
+        });
         new ServerThread().start();
     }
 
@@ -72,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        help.setText("This is the server app. \n Tap the card to the device. \n IP address: " + getWifiIpAddress(getApplicationContext()) + "\n Port: 8888");
+        help.setText("IP address: " + getWifiIpAddress(getApplicationContext()) + "\nPort: 8888");
         // Enable Reader Mode when activity is resumed
         if (nfcAdapter != null) {
             Bundle options = new Bundle();
@@ -171,25 +189,51 @@ public class MainActivity extends AppCompatActivity {
                 ) {
                     String CommandApdu;
                     while ((CommandApdu = in.readLine()) != null) {
-                        Log.d("Server", "APDU received: " + CommandApdu);
+                        final String cmd = CommandApdu;
 
-                        if (publicIsoDep == null || !publicIsoDep.isConnected()) {
-                            Log.e("Server", "No card connected!");
-                            out.println("6D00"); // Standard error response
+                        runOnUiThread(() -> {
+                            logString.append("\n\nReader:\n").append(cmd);
+                            log.setText(logString.toString());
+                        });
+
+                        if (publicIsoDep == null) {
+                            out.println("6D00"); // No card connected
+                            continue;
+                        }
+
+                        boolean connected;
+                        try {
+                            connected = publicIsoDep.isConnected();
+                        } catch (SecurityException e) {
+                            // Tag expired or permission denied
+                            connected = false;
+                        }
+
+                        if (!connected) {
+                            out.println("6A82"); // Card disconnected or not found
                             continue;
                         }
 
                         try {
-                            byte[] response = publicIsoDep.transceive(hexStringToByteArray(CommandApdu));
-                            Log.d("Server", "Card response: " + bytesToHex(response));
-                            out.println(bytesToHex(response));
+                            byte[] response = publicIsoDep.transceive(hexStringToByteArray(cmd));
+                            final String hexResponse = bytesToHex(response);
+
+                            runOnUiThread(() -> {
+                                logString.append("\n\nCard response:\n").append(hexResponse);
+                                log.setText(logString.toString());
+                            });
+
+                            out.println(hexResponse);
                         } catch (IOException e) {
-                            Log.e("Server", "Transceive error", e);
-                            out.println("6F00"); // Another common error
+                            out.println("6F00"); // Transceive error
                         }
                     }
                 } catch (IOException e) {
                     Log.e("Server", "Client connection error", e);
+                    runOnUiThread(() -> {
+                        logString.append("\n\nConnection error: ").append(e);
+                        log.setText(logString.toString());
+                    });
                 } finally {
                     try {
                         socket.close();
