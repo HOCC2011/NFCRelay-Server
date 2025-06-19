@@ -198,6 +198,10 @@ public class MainActivity extends AppCompatActivity {
 
                         if (publicIsoDep == null) {
                             out.println("6D00"); // No card connected
+                            runOnUiThread(() -> {
+                                logString.append("\n\nCard not connected");
+                                log.setText(logString.toString());
+                            });
                             continue;
                         }
 
