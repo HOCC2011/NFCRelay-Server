@@ -1,2 +1,2 @@
 # NFCRelay-Server
-An Android app which relays it's nfc hardware to other devices.
+An Android app which relays its NFC hardware to other devices.
